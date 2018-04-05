@@ -28,6 +28,29 @@ namespace eval knoraApi {
     set users [dict get $res users]
     return $users
   }
+  #===============================================================================
 
-  namespace export get_ontologies get_users
+  proc get_projects { knora_server } {
+    set res [rest::get $knora_server/admin/projects {} {
+      method get
+      format json
+    }]
+    set res [json::json2dict $res]
+    set projects [dict get $res projects]
+    return $projects
+  }
+  #===============================================================================
+
+  proc get_ontologies { knora_server } {
+    set res [rest::get $knora_server/admin/ontologies {} {
+      method get
+      format json
+    }]
+    set res [json::json2dict $res]
+    set ontologies [dict get $res ontologies]
+    return $ontologies
+  }
+  #===============================================================================
+
+  namespace export get_ontologies get_users get_projects get_ontologies
 }
