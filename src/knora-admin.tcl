@@ -3,27 +3,13 @@
 package require rest
 package require json
 package require Img
+package require xml
+
+source "helper.tcl"
+source "knora-api.tcl"
 
 global knora_server
 set knora_server "http://0.0.0.0:3333"
-
-proc ue_init {} {
-   lappend d + { }
-   for {set i 0} {$i < 256} {incr i} {
-      set c [format %c $i]
-      set x %[format %02x $i]
-      if {![string match {[a-zA-Z0-9]} $c]} {
-         lappend e $c $x
-         lappend d $x $c
-      }
-   }
-   set ::ue_map $e
-   set ::ud_map $d
-}
-ue_init
-proc uencode {s} { string map $::ue_map $s }
-proc udecode {s} { string map $::ud_map $s }
-
 
 #
 # Setting up the work window
@@ -34,93 +20,9 @@ set sx [winfo screenheight .]
 set sy [winfo screenwidth .]
 wm geometry . [expr $sy - 200]x[expr $sx - 200]+100+100
 
-#===============================================================================
-# proc knora_get_ontologies {}
-#
-# returns: list of dicts
-# [ {@id ontology-id @type IRI knora-api:lastModificationDate date @label string},…]
-#-------------------------------------------------------------------------------
-# query the Knora instance for a list of all Ontologies
-#===============================================================================
-proc knora_get_ontologies {} {
-  global knora_server
-  set res [rest::get $knora_server/v2/ontologies/metadata {} {
-    method get
-    format json
-  }]
-  set res [json::json2dict $res]
-  set ontos [dict get $res knora-api:hasOntologies]
-  return $ontos
-}
-#===============================================================================
-
-proc knora_get_users {} {
-  global knora_server
-  set res [rest::get $knora_server/admin/users {} {
-    method get
-    format json
-  }]
-  set res [json::json2dict $res]
-  set users [dict get $res users]
-  return $users
-}
 
 
-proc get_ontology {} {
-  global ontosel_box_w
-  set ontosel_box_w [toplevel .ontosel -class Dialog]
-  wm resizable $ontosel_box_w false false
-  wm group $ontosel_box_w .
-  wm title $ontosel_box_w "Select Ontology"
-  wm transient $ontosel_box_w . ;#[winfo toplevel [winfo parent $ontosel_box_w]]
-  wm overrideredirect $ontosel_box_w 1
 
-  set button_frame_w [frame $ontosel_box_w.button_frame]
-  set cancel_button_w [ttk::button $button_frame_w.cancel \
-    -text "Cancel" \
-    -command {
-      destroy $ontosel_box_w
-  }]
-  set ok_button_w [ttk::button $button_frame_w.ok \
-     -default active \
-     -text "OK" \
-     -command {
-#         read_settings $settings_fname $incl_geom $incl_surfs $incl_lights
-         destroy $ontosel_box_w
-     }]
-  bind $ok_button_w <Return> "
-    $ok_button_w configure -state active -relief sunken
-    update idletasks
-    after 100
-    $ok_button_w invoke
-"
-  grid columnconfigure $button_frame_w 0 -minsize 25
-  grid columnconfigure $button_frame_w 1 -minsize 120
-  grid columnconfigure $button_frame_w 2 -minsize 25
-  grid columnconfigure $button_frame_w 3 -minsize 120
-  grid columnconfigure $button_frame_w 4 -minsize 25
-  grid $cancel_button_w -row 0 -column 1 -sticky we -pady 5
-  grid $ok_button_w -row 0 -column 3 -sticky we -pady 5
-
-  pack $button_frame_w \
-    -side top -fill x -expand true \
-    -padx 5 -pady 5
-    raise $ontosel_box_w
-
-  tkwait visibility $ontosel_box_w
-  tkwait visibility $ontosel_box_w
-
-  set oldFocus [focus]
-  set oldGrab [grab current $ontosel_box_w]
-  if {$oldGrab != ""} {
-	   set grabStatus [grab status $oldGrab]
-  }
-  grab $ontosel_box_w
-  focus $ok_button_w
-
-    return
-
-}
 #set ontolist_label [ttk::label .ontolist_label -text "Ontologies: none selected"]
 #ttk::button .ontolist_sel -text "Select new ontology" -command {
 #  get_ontology
@@ -141,13 +43,50 @@ $tabs_w add $ontologies_w -text "Ontologies"
 
 pack $tabs_w -fill both -expand 1
 
-set users [knora_get_users]
-puts $users
+set user_paned [ttk::panedwindow $users_w.paned -orient horizontal]
+set user_left [ttk::labelframe $user_paned.left  -text "Userlist"]
+set user_right [ttk::labelframe $user_paned.right -text "Details"]
+$user_paned add $user_left
+$user_paned add $user_right
 
-set userlist [ttk::treeview $users_w.userlist -columns [list last first id] -displaycolumns [list last first id]]
+set users [knoraApi::get_users $knora_server]
+foreach user $users {
+  dict for {key val} $user {
+    puts "$key : $val"
+  }
+  set userarr([dict get $user id]) $user
+  puts "==========================================================="
+}
+
+set userlist [ttk::treeview $user_left.userlist \
+  -selectmode browse \
+  -columns [list last first id] \
+  -displaycolumns [list last first id]]
 $userlist heading last -text Lastname
 $userlist heading first -text Firstname
 $userlist heading id -text Id
+bind $userlist <<TreeviewSelect>> {
+  set uid [$userlist focus]
+  set familyNameV [dict get $userarr($uid) familyName]
+  set givenNameV [dict get $userarr($uid) givenName]
+  set emailV [dict get $userarr($uid) email]
+  set passwordV {} ;# empty password field
+  switch [dict get $userarr($uid) lang] {
+    en {
+      $user_right.langE configure -text "en"
+    }
+    de {
+      $user_right.langE configure -text "de"
+    }
+    fr {
+      $user_right.langE configure -text "fr"
+    }
+    it {
+      $user_right.langE configure -text "it"
+    }
+  }
+  puts $userarr($uid)
+}
 
 foreach user $users {
 #  $userlist insert {} end -id [dict get $user id ] -text [dict get $user familyName]
@@ -155,6 +94,37 @@ foreach user $users {
     -values [list [dict get $user familyName] [dict get $user givenName] [dict get $user id]]
 }
 pack $userlist -fill y -expand 1
+
+ttk::label $user_right.familyNameL -text Lastname
+ttk::entry $user_right.familyNameE -textvariable familyNameV
+ttk::label $user_right.givenNameL -text Firstname
+ttk::entry $user_right.givenNameE -textvariable givenNameV
+ttk::label $user_right.emailL -text Email
+ttk::entry $user_right.emailE -textvariable emailV
+ttk::label $user_right.passwordL -text Password
+ttk::entry $user_right.passwordE -show 0 -textvariable passwordV
+ttk::label $user_right.langL -text Language
+ttk::menubutton $user_right.langE -menu $user_right.langE.m -text "-"
+menu $user_right.langE.m
+$user_right.langE.m add command -label "en" -command {}
+$user_right.langE.m add command -label "de"
+$user_right.langE.m add command -label "fr"
+$user_right.langE.m add command -label "it"
+
+grid $user_right.familyNameL -column 0 -row 0
+grid $user_right.familyNameE -column 1 -row 0
+grid $user_right.givenNameL -column 0 -row 1
+grid $user_right.givenNameE -column 1 -row 1
+grid $user_right.emailL -column 0 -row 2
+grid $user_right.emailE -column 1 -row 2
+grid $user_right.passwordL -column 0 -row 3
+grid $user_right.passwordE -column 1 -row 3
+grid $user_right.langL -column 0 -row 4
+grid $user_right.langE -column 1 -row 4
+
+
+pack $user_paned -fill both -expand 1
+#pack $user_left $user_right -fill both -expand 1
 
 #foreach user $users {
 #  puts "===================="#
