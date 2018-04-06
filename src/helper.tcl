@@ -34,5 +34,10 @@ namespace eval helper {
     string map $ud_map $s
   }
 
+  proc parse_iri { iri } {
+    set parts [split $iri "/"]
+    return lmap part $parts { expr { $part == {} ? [continue] : $part} }
+  }
+
   namespace export uencode udecode
 }
