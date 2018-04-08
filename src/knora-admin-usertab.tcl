@@ -1,6 +1,11 @@
-proc changed {} {
-  puts "changed"
+
+global field_status
+proc field_changed {varname args} {
+  global user_right
+  set field_status($varname) 1
+  $user_right.save configure -state normal
 }
+
 
 proc users_tab { users_w } {
   global knora_server
@@ -8,6 +13,11 @@ proc users_tab { users_w } {
   global userarr
   global user_right
   global languages
+
+  global familyNameV
+  global givenNameV
+  global emailV
+  global passwordV
 
   set user_paned [ttk::panedwindow $users_w.paned -orient horizontal]
   set user_left [ttk::labelframe $user_paned.left  -text "Userlist"]
@@ -34,10 +44,16 @@ proc users_tab { users_w } {
     global user_right
     set uid [$userlist focus]
     set familyNameV [dict get $userarr($uid) familyName]
+    set field_status(familyNameV) 0
     set givenNameV [dict get $userarr($uid) givenName]
+    set field_status(givenNameV) 0
     set emailV [dict get $userarr($uid) email]
+    set field_status(emailV) 0
     set passwordV {} ;# empty password field
+    set field_status(passwordV) 0
     $user_right.langE configure -text [dict get $userarr($uid) lang]
+    $user_right.save configure -state disabled
+
   }
 
   foreach user $users {
@@ -50,13 +66,16 @@ proc users_tab { users_w } {
 
   ttk::label $user_right.familyNameL -text "Lastname:"
   ttk::entry $user_right.familyNameE -textvariable familyNameV
-  trace variable familyNameV w changed
+  trace variable familyNameV w field_changed
   ttk::label $user_right.givenNameL -text "Firstname:"
   ttk::entry $user_right.givenNameE -textvariable givenNameV
+  trace variable givenNameV w field_changed
   ttk::label $user_right.emailL -text "Email:"
   ttk::entry $user_right.emailE -textvariable emailV
+  trace variable emailV w field_changed
   ttk::label $user_right.passwordL -text "Password:"
   ttk::entry $user_right.passwordE -show 0 -textvariable passwordV
+  trace variable passwordV w field_changed
   ttk::label $user_right.langL -text "Language:"
   ttk::menubutton $user_right.langE -menu $user_right.langE.m -text "-"
   menu $user_right.langE.m
@@ -64,6 +83,16 @@ proc users_tab { users_w } {
   foreach lang $languages {
     $user_right.langE.m add command -label $lang -command {}
   }
+
+  ttk::button $user_right.save \
+    -text "Save" \
+    -state disabled \
+    -command {}
+
+    ttk::button $user_right.new \
+      -text "new" \
+      -command {}
+
 
   grid $user_right.familyNameL -column 0 -row 0 -sticky ne
   grid $user_right.familyNameE -column 1 -row 0 -sticky nw
@@ -75,6 +104,8 @@ proc users_tab { users_w } {
   grid $user_right.passwordE -column 1 -row 3 -sticky nw
   grid $user_right.langL -column 0 -row 4 -sticky ne
   grid $user_right.langE -column 1 -row 4 -sticky nw
+  grid $user_right.save -column 0 -row 5 -sticky ne
+  grid $user_right.new -column 1 -row 5 -sticky ne
 
   pack $user_paned -fill both -expand 1
 }
