@@ -174,6 +174,10 @@ proc users_tab { users_w } {
     
     pack $user_paned -fill both -expand 1
     
-    set json [::json::write object gaga GAGA gugus 5 ARR [::json::write arra AA BB CC DD]]
+    set gaga [dict create gaga GAGA gugus 5]
+    set tmp [helper::dict2list $gaga]
+    puts $tmp
+    set json  [::json::write object $tmp]
+#    set json [::json::write object gaga GAGA gugus 5 ARR [::json::write array AA BB CC DD]]
     puts $json
 }

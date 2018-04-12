@@ -38,6 +38,14 @@ namespace eval helper {
     set parts [split $iri "/"]
     return lmap part $parts { expr { $part == {} ? [continue] : $part} }
   }
+  
+  proc dict2list { d } {
+     set l {}
+     dict for { key val } $d {
+        lappend l $key $val
+     }
+     return $l
+  }
 
-  namespace export uencode udecode
+  namespace export uencode udecode parse_iri
 }

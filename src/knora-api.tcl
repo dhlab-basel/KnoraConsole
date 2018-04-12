@@ -76,7 +76,7 @@ namespace eval knoraApi {
   }
   #===============================================================================
 
-  proc get_projects { } {
+  proc put_users { user_iri user_info} {
     global knora_server
     global aeskey
     global username
@@ -85,14 +85,14 @@ namespace eval knoraApi {
     set passwd [aes::aes -dir decrypt -key $aeskey $aespasswd]
     set options [dict create method get auth "basic $username $passwd" format json]
 
-    catch { rest::get $knora_server/admin/projects {} $options } res error
+    catch { rest::get $knora_server/admin/users {} $options } res error
     if { [dict get $error "-code"] != 0} {
       return [dict create errormsg $res]
     }
 
     set res [json::json2dict $res]
-    set projects [dict get $res projects]
-    return $projects
+    set users [dict get $res users]
+    return $users
   }
   #===============================================================================
 
