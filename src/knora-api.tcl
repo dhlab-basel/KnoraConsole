@@ -76,7 +76,40 @@ namespace eval knoraApi {
   }
   #===============================================================================
 
-  proc put_users { user_iri user_info} {
+  proc put_user { user_iri user_info} {
+    global knora_server
+    global aeskey
+    global username
+    global aespasswd
+    global authstr
+    set passwd [aes::aes -dir decrypt -key $aeskey $aespasswd]
+    set options [dict create method put auth "basic $username $passwd" format json content-type "application/json"]
+
+	set user_iri [::helper::uencode $user_iri]
+#	set data [::json::write object {*}$user_info]
+	set data [::helper::dict2json $user_info]
+	puts "++++++++++++++++++++++"
+	puts $data
+	puts "++++++++++++++++++++++"
+#	set data [::helper::uencode $data]
+
+    catch { rest::put $knora_server/admin/users/$user_iri {} $options $data } res error
+	puts "RES: =========================================="
+	puts $res
+	puts "ERROR: ========================================"
+	puts $error
+	puts "***********************************************"
+    if { [dict get $error "-code"] != 0} {
+      return [dict create errormsg $res]
+    }
+
+    set res [json::json2dict $res]
+    set users [dict get $res users]
+    return $users
+  }
+  #===============================================================================
+
+  proc get_projects { } {
     global knora_server
     global aeskey
     global username
@@ -85,14 +118,14 @@ namespace eval knoraApi {
     set passwd [aes::aes -dir decrypt -key $aeskey $aespasswd]
     set options [dict create method get auth "basic $username $passwd" format json]
 
-    catch { rest::get $knora_server/admin/users {} $options } res error
+    catch { rest::get $knora_server/admin/projects {} $options } res error
     if { [dict get $error "-code"] != 0} {
       return [dict create errormsg $res]
     }
 
     set res [json::json2dict $res]
-    set users [dict get $res users]
-    return $users
+    set projects [dict get $res projects]
+    return $projects
   }
   #===============================================================================
 

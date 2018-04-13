@@ -66,6 +66,7 @@ proc users_tab { users_w } {
     global field_status
     global orig_value
     global value
+	global uid
         
     set user_paned [ttk::panedwindow $users_w.paned -orient horizontal]
     set user_left [ttk::labelframe $user_paned.left  -text "Userlist"]
@@ -154,7 +155,10 @@ proc users_tab { users_w } {
     ttk::button $user_right.save \
     -text "Save" \
     -state disabled \
-    -command {}
+    -command {
+		knoraApi::put_user $uid [dict create familyName {ABCDEF}]
+		puts $uid
+	}
     
     ttk::button $user_right.new \
     -text "new" \
@@ -174,10 +178,4 @@ proc users_tab { users_w } {
     
     pack $user_paned -fill both -expand 1
     
-    set gaga [dict create gaga GAGA gugus 5]
-    set tmp [helper::dict2list $gaga]
-    puts $tmp
-    set json  [::json::write object $tmp]
-#    set json [::json::write object gaga GAGA gugus 5 ARR [::json::write array AA BB CC DD]]
-    puts $json
 }
