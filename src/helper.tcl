@@ -39,18 +39,20 @@ namespace eval helper {
     return lmap part $parts { expr { $part == {} ? [continue] : $part} }
   }
   
+  
   proc dict2json { data } {
-	  set json "\{"
-	  set i 0
-	  dict for {key value} $data {
-		  set json [concat $json  "\"$key\"" ":" "\"$value\""]
-		  if { $i != 0 } {
-			  set json [$json",\n"]
-		  }
-	  }
-	  set json [concat $json "\}"]
-	  return $json
+     set json "\{"
+     set i 0
+     dict for {key value} $data {
+        if { [expr $i > 0] } {
+           set json [concat $json ", "]
+        }
+        set json [concat $json  "\"$key\"" ":" "\"$value\""]
+        incr i
+     }
+     set json [concat $json "\}"]
+     return $json
   }
   
-  namespace export uencode udecode parse_iri
+  namespace export uencode udecode parse_iri dict2json
 }

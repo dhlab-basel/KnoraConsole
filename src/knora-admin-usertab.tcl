@@ -1,15 +1,20 @@
 
 global languages
 
+global usergroups
+set usergroups [list UnknownUser KnownUser Creator ProjectMember ProjectAdmin SystemAdmin]
+
 global fielddefs
 set fielddefs [dict create \
     familyName [list entryfield "Lastname"] \
     givenName [list entryfield "Firstname"] \
-    email [list entryfield "Email"] \
+    email [list rdonlyfield "Email"] \
     password [list passwdfield "Password"] \
-    lang [list pulldown "Language" $languages]
+    lang [list pulldown "Language" $languages] \
 ]
+# permissions [list tree "Groups p. project" $usergroups] \
 
+;# groupsPerProject administrativePermissionsPerProject
 
 #
 # the proc is called if an entry field is being changed
@@ -59,14 +64,13 @@ proc undo { fieldname } {
 proc users_tab { users_w } {
     global knora_server
     global userlist
-    global userarr
     global user_right
     
     global fielddefs
     global field_status
     global orig_value
     global value
-	global uid
+    global uid
         
     set user_paned [ttk::panedwindow $users_w.paned -orient horizontal]
     set user_left [ttk::labelframe $user_paned.left  -text "Userlist"]
@@ -75,9 +79,6 @@ proc users_tab { users_w } {
     $user_paned add $user_right
     
     set users [knoraApi::get_users]
-    foreach user $users {
-        set userarr([dict get $user id]) $user
-    }
     
     set userlist [ttk::treeview $user_left.userlist \
     -show headings \
@@ -89,22 +90,22 @@ proc users_tab { users_w } {
     $userlist heading id -text Id
     bind $userlist <<TreeviewSelect>> {
         global userlist
-        global userarr
         global user_right
         set uid [$userlist focus]
         
+        set user [knoraApi::get_users $uid]
         dict for {fieldname fieldinfo} $fielddefs {
-            set value($fieldname) [dict get $userarr($uid) $fieldname]
+            set value($fieldname) [dict get $user $fieldname]
             set orig_value($fieldname) $value($fieldname)
             set field_status($fieldname) 0
             switch [lindex $fieldinfo 0] {
                 entryfield {}
                 passwdfield {}
                 pulldown {
-                    set value($fieldname) [dict get $userarr($uid) $fieldname]
+                    set value($fieldname) [dict get $user $fieldname]
                     set orig_value($fieldname) $value($fieldname)
                     set field_status($fieldname) 0
-                    $user_right.${fieldname}E configure -text [dict get $userarr($uid) lang]
+                    $user_right.${fieldname}E configure -text [dict get $user lang]
                 }
             }
             $user_right.${fieldname}S configure -state disabled
@@ -122,6 +123,12 @@ proc users_tab { users_w } {
     
     dict for {fieldname fieldinfo} $fielddefs {
         switch [lindex $fieldinfo 0] {
+           rdonlyfield {
+               ttk::label $user_right.${fieldname}L -text [lindex $fieldinfo 1]
+               ttk::entry $user_right.${fieldname}E -textvariable value($fieldname) -state readonly
+               ttk::button $user_right.${fieldname}S -text {undo} -command "undo $fieldname"
+               trace variable value($fieldname) w field_changed
+           }
             entryfield {
                 ttk::label $user_right.${fieldname}L -text [lindex $fieldinfo 1]
                 ttk::entry $user_right.${fieldname}E -textvariable value($fieldname)
@@ -136,17 +143,19 @@ proc users_tab { users_w } {
             }
             pulldown {
                 ttk::label $user_right.${fieldname}L -text [lindex $fieldinfo 1]
-                ttk::menubutton $user_right.${fieldname}E -menu $user_right.${fieldname}E.m -text "-"
-                menu $user_right.${fieldname}E.m
-    
-                foreach lang [lindex $fieldinfo 2] {
-                    $user_right.${fieldname}E.m add command -label $lang -command "
-                    set value($fieldname) $lang
-                    $user_right.${fieldname}E configure -text $lang
-                    "
-                }
+                tk_optionMenu $user_right.${fieldname}E value($fieldname) {*}[lindex $fieldinfo 2]
                 ttk::button $user_right.${fieldname}S -text {undo} -command "undo $fieldname"
                 trace variable value($fieldname) w field_changed
+            }
+            checkboxes {
+               ttk::label $user_right.${fieldname}L -text [lindex $fieldinfo 1]
+               ttk::frame $user_right.${fieldname}E
+               foreach group [lindex $fieldinfo 2] {
+                  puts $user_right.${fieldname}E.cb${group}
+                  ttk::checkbutton $user_right.${fieldname}E.cb${group} -text $group
+                  pack $user_right.${fieldname}E.cb${group} -side top -expand 1 -anchor nw
+               }
+               ttk::button $user_right.${fieldname}S -text {undo} -command "undo $fieldname"
             }
         }
     }
@@ -156,9 +165,15 @@ proc users_tab { users_w } {
     -text "Save" \
     -state disabled \
     -command {
-		knoraApi::put_user $uid [dict create familyName {ABCDEF}]
-		puts $uid
-	}
+       foreach {field status} [array get field_status] {
+          if { $status } {
+             dict set changes $field $value($field)
+          }
+       }
+       puts $changes
+       knoraApi::put_user $uid $changes
+       puts $uid
+    }
     
     ttk::button $user_right.new \
     -text "new" \
@@ -168,13 +183,13 @@ proc users_tab { users_w } {
     dict for {fieldname fieldinfo} $fielddefs {
         grid $user_right.${fieldname}L -column 0 -row $i -sticky ne
         grid $user_right.${fieldname}E -column 1 -row $i -sticky nw
-        grid $user_right.${fieldname}S -column 2 -row $i -sticky nw
+        grid $user_right.${fieldname}S -column 2 -row $i -sticky sw
         incr i
     }
-    grid $user_right.langL -column 0 -row 4 -sticky ne
-    grid $user_right.langE -column 1 -row 4 -sticky nw
-    grid $user_right.save -column 0 -row 5 -sticky ne
-    grid $user_right.new -column 1 -row 5 -sticky ne
+#    grid $user_right.langL -column 0 -row 4 -sticky ne
+#    grid $user_right.langE -column 1 -row 4 -sticky nw
+    grid $user_right.save -column 0 -row $i -sticky ne
+    grid $user_right.new -column 1 -row $i -sticky ne
     
     pack $user_paned -fill both -expand 1
     
