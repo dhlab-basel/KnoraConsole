@@ -53,6 +53,6 @@ namespace eval helper {
      set json [concat $json "\}"]
      return $json
   }
-  
+
   namespace export uencode udecode parse_iri dict2json
 }
